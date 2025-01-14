@@ -33,13 +33,13 @@ const (
 
 const upgradeHelpText = `Examples:
   # Upgrade all components
-  nodeadm upgrade
+  nodeadm upgrade 1.31 --config-source file:///root/nodeConfig.yaml
 
   # Upgrade all components with a maximum timeout
-  nodeadm upgrade --timeout 1h30s
+  nodeadm upgrade 1.31 --config-source file:///root/nodeConfig.yaml --timeout 20m
 
 Documentation:
-  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-updates.html`
+  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-nodeadm.html`
 
 func NewUpgradeCommand() cli.Command {
 	cmd := command{

@@ -21,11 +21,8 @@ const initHelpText = `Examples:
   # Initialize using configuration file
   nodeadm init --config-source file://nodeConfig.yaml
 
-  # Initialize with specific daemons
-  nodeadm init --config-source file://nodeConfig.yaml --daemon containerd
-
 Documentation:
-  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-setup.html`
+  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-nodeadm.html`
 
 func NewInitCommand() cli.Command {
 	init := initCmd{}

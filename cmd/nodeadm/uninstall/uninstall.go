@@ -31,8 +31,11 @@ const uninstallHelpText = `Examples:
   # Uninstall all components
   nodeadm uninstall
 
+  # Uninstall all components except pod-validation and node-validation
+  nodeadm uninstall --skip node-validation,pod-validation
+
 Documentation:
-  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-cleanup.html`
+  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-nodeadm.html`
 
 func NewCommand() cli.Command {
 	cmd := command{}

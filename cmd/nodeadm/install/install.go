@@ -17,14 +17,14 @@ import (
 )
 
 const installHelpText = `Examples:
-  # Install all components with Kubernetes 1.31
+  # Install Kubernetes version 1.31 with AWS Systems Manager (SSM) as the credential provider
   nodeadm install 1.31 --credential-provider ssm
 
-  # Install with custom containerd source
-  nodeadm install 1.31 --credential-provider iam-ra --containerd-source docker
+  # Install Kubernetes version 1.31 with AWS IAM Roles Anywhere as the credential provider and Docker as the containerd source
+  nodeadm install 1.31 --credential-provider ssm --containerd-source docker
 
 Documentation:
-  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-os.html`
+  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-nodeadm.html`
 
 func NewCommand() cli.Command {
 	cmd := command{

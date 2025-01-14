@@ -6,10 +6,10 @@ import (
 
 const configHelpText = `Examples:
   # Check configuration file
-  nodeadm config check --config nodeConfig.yaml
+  nodeadm config check --config-source file:///root/nodeConfig.yaml
 
 Documentation:
-  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-prerequisites.html`
+  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-nodeadm.html`
 
 func NewConfigCommand() cli.Command {
 	container := cli.NewCommandContainer("config", "Manage and validate hybrid node configuration.")
