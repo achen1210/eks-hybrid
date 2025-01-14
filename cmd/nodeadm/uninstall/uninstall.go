@@ -32,6 +32,7 @@ func NewCommand() cli.Command {
 
 	fc := flaggy.NewSubcommand("uninstall")
 	fc.Description = "Uninstall components installed using the install sub-command"
+	fc.AdditionalHelpAppend = cli.DocsLink
 	fc.StringSlice(&cmd.skipPhases, "s", "skip", "phases of uninstall you want to skip")
 	cmd.flaggy = fc
 

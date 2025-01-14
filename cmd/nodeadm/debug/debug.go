@@ -27,6 +27,7 @@ func NewCommand() cli.Command {
 	debug.cmd = flaggy.NewSubcommand("debug")
 	debug.cmd.String(&debug.nodeConfigSource, "c", "config-source", "Source of node configuration. The format is a URI with supported schemes: [file, imds].")
 	debug.cmd.Description = "Debug the node registration process"
+	debug.cmd.AdditionalHelpAppend = cli.DocsLink
 	return &debug
 }
 

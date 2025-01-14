@@ -38,6 +38,7 @@ func NewUpgradeCommand() cli.Command {
 
 	fc := flaggy.NewSubcommand("upgrade")
 	fc.Description = "Upgrade components installed using the install sub-command"
+	fc.AdditionalHelpAppend = cli.DocsLink
 	fc.AddPositionalValue(&cmd.kubernetesVersion, "KUBERNETES_VERSION", 1, true, "The major[.minor[.patch]] version of Kubernetes to install")
 	fc.String(&cmd.configSource, "c", "config-source", "Source of node configuration. The format is a URI with supported schemes: [file, imds].")
 	fc.StringSlice(&cmd.skipPhases, "s", "skip", "phases of the upgrade you want to skip")

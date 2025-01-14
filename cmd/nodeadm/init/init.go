@@ -24,6 +24,7 @@ func NewInitCommand() cli.Command {
 	init.cmd.StringSlice(&init.daemons, "d", "daemon", "specify one or more of `containerd` and `kubelet`. This is intended for testing and should not be used in a production environment.")
 	init.cmd.StringSlice(&init.skipPhases, "s", "skip", "phases of the bootstrap you want to skip")
 	init.cmd.Description = "Initialize this instance as a node in an EKS cluster"
+	init.cmd.AdditionalHelpAppend = cli.DocsLink
 	return &init
 }
 

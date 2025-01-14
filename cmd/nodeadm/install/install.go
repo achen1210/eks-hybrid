@@ -23,6 +23,7 @@ func NewCommand() cli.Command {
 
 	fc := flaggy.NewSubcommand("install")
 	fc.Description = "Install components required to join an EKS cluster"
+	fc.AdditionalHelpAppend = cli.DocsLink
 	fc.AddPositionalValue(&cmd.kubernetesVersion, "KUBERNETES_VERSION", 1, true, "The major[.minor[.patch]] version of Kubernetes to install")
 	fc.String(&cmd.credentialProvider, "p", "credential-provider", "Credential process to install. Allowed values are ssm & iam-ra")
 	fc.String(&cmd.containerdSource, "s", "containerd-source", "Source for containerd artifact. Allowed values are none, distro & docker")
