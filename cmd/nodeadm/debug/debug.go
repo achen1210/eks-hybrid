@@ -22,11 +22,23 @@ import (
 	"github.com/aws/eks-hybrid/internal/validation"
 )
 
+const debugHelpText = `Examples:
+  # Debug using a local config file
+  nodeadm debug --config-source file://nodeConfig.yaml
+
+  # Debug using instance metadata service
+  nodeadm debug --config-source imds://
+
+Documentation:
+  https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-troubleshooting.html`
+
+
 func NewCommand() cli.Command {
 	debug := debug{}
 	debug.cmd = flaggy.NewSubcommand("debug")
-	debug.cmd.String(&debug.nodeConfigSource, "c", "config-source", "Source of node configuration. The format is a URI with supported schemes: [file, imds].")
-	debug.cmd.Description = "Debug the node registration process"
+	debug.cmd.Description = "Debug the node registration process and collect diagnostic information for troubleshooting."
+	debug.cmd.AdditionalHelpAppend = debugHelpText
+	debug.cmd.String(&debug.nodeConfigSource, "c", "config-source", "[Required] Source of node configuration. The format is a URI with supported schemes: [file, imds].")
 	return &debug
 }
 
