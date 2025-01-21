@@ -116,6 +116,12 @@ func (c *command) Run(log *zap.Logger, opts *cli.GlobalOptions) error {
 		return err
 	}
 
+	if containerdSource == containerd.ContainerdSourceDocker {
+		if err := packageManager.UninstallPackageManagerDockerRepos(); err != nil {
+			return err
+		}
+	}
+
 	uninstaller := &flows.Uninstaller{
 		Artifacts:      installed.Artifacts,
 		DaemonManager:  daemonManager,
