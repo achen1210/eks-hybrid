@@ -117,7 +117,7 @@ func (c *command) Run(log *zap.Logger, opts *cli.GlobalOptions) error {
 	}
 
 	if containerdSource == containerd.ContainerdSourceDocker {
-		if err := packageManager.UninstallPackageManagerDockerRepos(); err != nil {
+		if err := packageManager.UninstallPackageManagerDockerRepo(); err != nil {
 			return err
 		}
 	}
