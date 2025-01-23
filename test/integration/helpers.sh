@@ -153,6 +153,29 @@ function assert::file-permission-matches() {
   fi
 }
 
+assert::containerd-installed-from-docker() {
+    local expected_state=$1
+    if [[ ! "$expected_state" =~ ^(true|false)$ ]]; then
+        echo "ERROR: Invalid state '$expected_state'"
+        echo "Usage: assert::containerd-installed-from-docker <true|false>"
+        echo "Checks whether Docker's containerd.io package is installed (true) or removed (false)"
+        exit 1
+    fi
+
+    local package_name="containerd.io"
+    local is_installed=$(rpm -q $package_name &>/dev/null; echo $?)
+
+    if [[ "$expected_state" == "true" && $is_installed -ne 0 ]]; then
+        echo "ERROR: Docker's $package_name package should be installed but isn't"
+        echo "rpm -q $package_name returned: $(rpm -q $package_name 2>&1)"
+        exit 1
+    elif [[ "$expected_state" == "false" && $is_installed -eq 0 ]]; then
+        echo "ERROR: Docker's $package_name package should be removed but found:"
+        echo "$(rpm -q $package_name 2>&1)"
+        exit 1
+    fi
+}
+
 # Check if a non-json file exists and verify its permission, if a 3rd argument is provided, also check file content
 function validate-file() {
   if [[ "$#" -ne 2 && "$#" -ne 3 ]]; then

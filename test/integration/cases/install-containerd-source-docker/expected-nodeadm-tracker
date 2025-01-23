@@ -1,0 +1,10 @@
+Artifacts:
+  CniPlugins: true
+  Containerd: docker
+  IamAuthenticator: true
+  IamRolesAnywhere: false
+  ImageCredentialProvider: true
+  Iptables: true
+  Kubectl: true
+  Kubelet: true
+  Ssm: true
