@@ -14,6 +14,7 @@ import (
 	"github.com/aws/eks-hybrid/internal/flows"
 	"github.com/aws/eks-hybrid/internal/logger"
 	"github.com/aws/eks-hybrid/internal/packagemanager"
+	"github.com/aws/eks-hybrid/internal/ssm"
 )
 
 const installHelpText = `Examples:
@@ -37,6 +38,7 @@ func NewCommand() cli.Command {
 	fc.AddPositionalValue(&cmd.kubernetesVersion, "KUBERNETES_VERSION", 1, true, "The major[.minor[.patch]] version of Kubernetes to install.")
 	fc.String(&cmd.credentialProvider, "p", "credential-provider", "Credential process to install. Allowed values: [ssm, iam-ra].")
 	fc.String(&cmd.containerdSource, "s", "containerd-source", "Source for containerd artifact. Allowed values: [none, distro, docker].")
+	fc.String(&cmd.region, "r", "region", "AWS region to download install artifacts from.")
 	fc.Duration(&cmd.timeout, "t", "timeout", "Maximum install command duration. Input follows duration format. Example: 1h23s")
 	cmd.flaggy = fc
 
@@ -48,6 +50,7 @@ type command struct {
 	kubernetesVersion  string
 	credentialProvider string
 	containerdSource   string
+	region             string
 	timeout            time.Duration
 }
 
@@ -55,6 +58,7 @@ type Config struct {
 	AwsSource          aws.Source
 	ContainerdSource   containerd.SourceName
 	CredentialProvider creds.CredentialProvider
+	SsmRegion          string
 	Log                *zap.Logger
 	DownloadTimeout    time.Duration
 }
@@ -81,6 +85,11 @@ func (c *command) Run(log *zap.Logger, opts *cli.GlobalOptions) error {
 	credentialProvider, err := creds.GetCredentialProvider(c.credentialProvider)
 	if err != nil {
 		return err
+	}
+
+	ssmRegion := c.region
+	if ssmRegion == "" {
+		ssmRegion = ssm.DefaultSsmInstallerRegion
 	}
 
 	// Default containerd source to distro
@@ -119,6 +128,7 @@ func (c *command) Run(log *zap.Logger, opts *cli.GlobalOptions) error {
 		AwsSource:          awsSource,
 		PackageManager:     packageManager,
 		ContainerdSource:   containerdSource,
+		SsmRegion:          ssmRegion,
 		CredentialProvider: credentialProvider,
 		Logger:             log,
 	}

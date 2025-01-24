@@ -40,6 +40,10 @@ func (s ssmInstallerSource) GetSSMInstaller(ctx context.Context) (io.ReadCloser,
 	return obj, nil
 }
 
+func (s ssmInstallerSource) GetSSMRegion() string {
+	return s.region
+}
+
 func buildSSMURL(region string) (string, error) {
 	variant, err := detectPlatformVariant()
 	if err != nil {
