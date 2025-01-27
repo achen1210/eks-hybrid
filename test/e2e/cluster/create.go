@@ -6,13 +6,18 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/aws/eks-hybrid/test/e2e"
+	"github.com/aws/eks-hybrid/test/e2e/addon"
 	"github.com/aws/eks-hybrid/test/e2e/cni"
+	"github.com/aws/eks-hybrid/test/e2e/errors"
 )
 
 type TestResources struct {
@@ -22,6 +27,7 @@ type TestResources struct {
 	HybridNetwork     NetworkConfig `yaml:"hybridNetwork"`
 	KubernetesVersion string        `yaml:"kubernetesVersion"`
 	Cni               string        `yaml:"cni"`
+	Endpoint          string        `yaml:"endpoint"`
 }
 
 type NetworkConfig struct {
@@ -32,8 +38,9 @@ type NetworkConfig struct {
 }
 
 const (
-	ciliumCni = "cilium"
-	calicoCni = "calico"
+	ciliumCni            = "cilium"
+	calicoCni            = "calico"
+	podIdentityAddonName = "eks-pod-identity-agent"
 )
 
 type Create struct {
@@ -42,12 +49,17 @@ type Create struct {
 	stack  *stack
 }
 
-func NewCreate(aws aws.Config, logger logr.Logger) Create {
+// NewCreate creates a new workflow to create an EKS cluster. The EKS client will use
+// the specified endpoint or the default endpoint if empty string is passed.
+func NewCreate(aws aws.Config, logger logr.Logger, endpoint string) Create {
 	return Create{
 		logger: logger,
-		eks:    eks.NewFromConfig(aws),
+		eks: eks.NewFromConfig(aws, func(o *eks.Options) {
+			o.EndpointResolverV2 = &e2e.EksResolverV2{Endpoint: endpoint}
+		}),
 		stack: &stack{
 			cfn:       cloudformation.NewFromConfig(aws),
+			ec2Client: ec2.NewFromConfig(aws),
 			logger:    logger,
 			ssmClient: ssm.NewFromConfig(aws),
 		},
@@ -74,6 +86,17 @@ func (c *Create) Run(ctx context.Context, test TestResources) error {
 	err = hybridCluster.create(ctx, c.eks, c.logger)
 	if err != nil {
 		return fmt.Errorf("creating %s EKS cluster: %w", test.KubernetesVersion, err)
+	}
+
+	podIdentityAddon := addon.Addon{
+		Cluster:       hybridCluster.Name,
+		Name:          podIdentityAddonName,
+		Configuration: "{\"daemonsets\":{\"hybrid\":{\"create\": true}}}",
+	}
+
+	err = podIdentityAddon.Create(ctx, c.eks, c.logger)
+	if err != nil && !errors.IsType(err, &types.ResourceInUseException{}) {
+		return fmt.Errorf("creating add-on %s for EKS cluster: %w", podIdentityAddon, err)
 	}
 
 	kubeconfig := KubeconfigPath(test.ClusterName)

@@ -28,9 +28,11 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/aws/eks-hybrid/test/e2e"
+	"github.com/aws/eks-hybrid/test/e2e/addon"
 	"github.com/aws/eks-hybrid/test/e2e/cluster"
 	"github.com/aws/eks-hybrid/test/e2e/commands"
 	"github.com/aws/eks-hybrid/test/e2e/credentials"
+	"github.com/aws/eks-hybrid/test/e2e/ec2"
 	"github.com/aws/eks-hybrid/test/e2e/kubernetes"
 	"github.com/aws/eks-hybrid/test/e2e/nodeadm"
 	osystem "github.com/aws/eks-hybrid/test/e2e/os"
@@ -54,6 +56,7 @@ type TestConfig struct {
 	SetRootPassword bool   `yaml:"setRootPassword"`
 	NodeK8sVersion  string `yaml:"nodeK8SVersion"`
 	LogsBucket      string `yaml:"logsBucket"`
+	Endpoint        string `yaml:"endpoint"`
 }
 
 type suiteConfiguration struct {
@@ -121,7 +124,7 @@ var _ = SynchronizedBeforeSuite(
 		aws, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(config.ClusterRegion))
 		Expect(err).NotTo(HaveOccurred())
 
-		infra, err := peered.Setup(ctx, logger, aws, config.ClusterName)
+		infra, err := peered.Setup(ctx, logger, aws, config.ClusterName, config.Endpoint)
 		Expect(err).NotTo(HaveOccurred(), "should setup e2e resources for peered test")
 
 		skipCleanup := os.Getenv("SKIP_CLEANUP") == "true"
@@ -242,10 +245,18 @@ var _ = Describe("Hybrid Nodes", func() {
 								Expect(peeredNode.Cleanup(ctx, instance)).To(Succeed())
 							}, NodeTimeout(deferCleanupTimeout))
 
+							test.logger.Info("Waiting for EC2 Instance to be Running...")
+							Expect(ec2.WaitForEC2InstanceRunning(ctx, test.ec2Client, instance.ID)).To(Succeed(), "EC2 Instance should have been reached Running status")
+
 							verifyNode := test.newVerifyNode(instance.IP)
 							Expect(verifyNode.Run(ctx)).To(
 								Succeed(), "node should have joined the cluster successfully",
 							)
+
+							test.logger.Info("Testing Pod Identity add-on functionality")
+							verifyPodIdentityAddon := test.newVerifyPodIdentityAddon()
+
+							Expect(verifyPodIdentityAddon.Run(ctx)).To(Succeed(), "pod identity add-on should be created successfully")
 
 							test.logger.Info("Resetting hybrid node...")
 							cleanNode := test.newCleanNode(provider, instance.IP)
@@ -456,4 +467,13 @@ func (t *peeredVPCTest) instanceName(testName string, os e2e.NodeadmOS, provider
 		e2e.SanitizeForAWSName(os.Name()),
 		e2e.SanitizeForAWSName(string(provider.Name())),
 	)
+}
+
+func (t *peeredVPCTest) newVerifyPodIdentityAddon() *addon.VerifyPodIdentityAddon {
+	return &addon.VerifyPodIdentityAddon{
+		Cluster:   t.cluster.Name,
+		K8S:       t.k8sClient,
+		Logger:    t.logger,
+		EKSClient: t.eksClient,
+	}
 }

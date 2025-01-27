@@ -38,6 +38,13 @@ func (i *Installer) Run(ctx context.Context) error {
 		return err
 	}
 
+	// temporary fix to re-configure package manager during upgrade which currently does full uninstall and re-install
+	// TODO: move Configure() back to install command when upgrade flow is changed
+	i.Logger.Info("Configuring package manager. This might take a while...")
+	if err := i.PackageManager.Configure(ctx); err != nil {
+		return err
+	}
+
 	if err := i.installDistroPackages(ctx); err != nil {
 		return err
 	}
@@ -58,10 +65,6 @@ func (i *Installer) installDistroPackages(ctx context.Context) error {
 	i.Logger.Info("Installing containerd...")
 	if err := containerd.Install(ctx, i.Tracker, i.PackageManager, i.ContainerdSource); err != nil {
 		return err
-	}
-
-	if err := containerd.ValidateSystemdUnitFile(); err != nil {
-		return fmt.Errorf("please install systemd unit file for containerd: %v", err)
 	}
 
 	i.Logger.Info("Installing iptables...")
