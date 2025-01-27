@@ -72,7 +72,7 @@ func validateSSMURL(url string) error {
 	_, err := http.Head(url)
 	if err != nil {
 		return fmt.Errorf("unable to access SSM installer download URL. "+
-			"Please check SSM is available on your region (e.g., us-west-2): %w", err)
+			"Please check SSM is available on the provided region (e.g., us-west-2): %w", err)
 	}
 
 	return nil
