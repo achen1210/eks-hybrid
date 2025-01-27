@@ -20,21 +20,23 @@ const DefaultSsmInstallerRegion = "us-west-2"
 
 // SSMInstaller provides a Source that retrieves the SSM installer from the official
 // release endpoint.
-func NewSSMInstaller(region string) Source {
+func NewSSMInstaller(region string, logger *zap.Logger) Source {
 	return ssmInstallerSource{
 		region: region,
+		logger: logger,
 	}
 }
 
 type ssmInstallerSource struct {
 	region string
+	logger *zap.Logger
 }
 
 func (s ssmInstallerSource) GetSSMRegion() string {
 	return s.region
 }
 
-func (s ssmInstallerSource) GetSSMInstaller(ctx context.Context, logger *zap.Logger) (io.ReadCloser, error) {
+func (s ssmInstallerSource) GetSSMInstaller(ctx context.Context) (io.ReadCloser, error) {
 	endpoint, err := buildSSMURL(s.region)
 	if err != nil {
 		return nil, err
@@ -44,7 +46,7 @@ func (s ssmInstallerSource) GetSSMInstaller(ctx context.Context, logger *zap.Log
 		return nil, err
 	}
 
-	logger.Info("Downloading SSM installer...", zap.String("url", endpoint))
+	s.logger.Info("Downloading SSM installer...", zap.String("url", endpoint))
 
 	obj, err := util.GetHttpFileReader(ctx, endpoint)
 	if err != nil {

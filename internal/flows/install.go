@@ -79,10 +79,10 @@ func (i *Installer) installCredentialProcess(ctx context.Context) error {
 			return err
 		}
 	case creds.SsmCredentialProvider:
-		ssmInstaller := ssm.NewSSMInstaller(i.SsmRegion)
+		ssmInstaller := ssm.NewSSMInstaller(i.SsmRegion, i.Logger)
 
 		i.Logger.Info("Installing SSM agent installer from region...", zap.String("region", i.SsmRegion))
-		if err := ssm.Install(ctx, i.Tracker, ssmInstaller, i.Logger); err != nil {
+		if err := ssmInstaller.Install(ctx, i.Tracker); err != nil {
 			return err
 		}
 	default:
