@@ -25,7 +25,8 @@ const (
 
 // Source serves an SSM installer binary for the target platform.
 type Source interface {
-	GetSSMInstaller(ctx context.Context) (io.ReadCloser, error)
+	GetSSMInstaller(ctx context.Context, logger *zap.Logger) (io.ReadCloser, error)
+	GetSSMRegion() string
 }
 
 // PkgSource serves and defines the package for target platform
@@ -33,8 +34,8 @@ type PkgSource interface {
 	GetSSMPackage() artifact.Package
 }
 
-func Install(ctx context.Context, tracker *tracker.Tracker, source Source) error {
-	installer, err := source.GetSSMInstaller(ctx)
+func Install(ctx context.Context, tracker *tracker.Tracker, source Source, logger *zap.Logger) error {
+	installer, err := source.GetSSMInstaller(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -44,7 +45,7 @@ func Install(ctx context.Context, tracker *tracker.Tracker, source Source) error
 		return errors.Wrap(err, "failed to install ssm installer")
 	}
 
-	if err = runInstallWithRetries(ctx); err != nil {
+	if err = runInstallWithRetries(ctx, source.GetSSMRegion(), logger); err != nil {
 		return errors.Wrapf(err, "failed to install ssm agent")
 	}
 
@@ -116,12 +117,15 @@ func uninstallPreRegisterComponents(ctx context.Context, pkgSource PkgSource) er
 	return os.RemoveAll(installerPath)
 }
 
-func runInstallWithRetries(ctx context.Context) error {
+func runInstallWithRetries(ctx context.Context, region string, logger *zap.Logger) error {
 	// Sometimes install fails due to conflicts with other processes
 	// updating packages, specially when automating at machine startup.
 	// We assume errors are transient and just retry for a bit.
 	installCmdBuilder := func(ctx context.Context) *exec.Cmd {
-		return exec.CommandContext(ctx, installerPath, "-install", "-region", DefaultSsmInstallerRegion)
+		return exec.CommandContext(ctx, installerPath, "-install", "-region", region)
 	}
+
+	logger.Info("Installing SSM agent with retries...", zap.String("region", region))
+
 	return cmd.Retry(ctx, installCmdBuilder, 5*time.Second)
 }

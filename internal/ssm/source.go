@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os/exec"
 	"runtime"
+
+	"go.uber.org/zap"
 
 	"github.com/aws/eks-hybrid/internal/util"
 )
@@ -27,11 +30,22 @@ type ssmInstallerSource struct {
 	region string
 }
 
-func (s ssmInstallerSource) GetSSMInstaller(ctx context.Context) (io.ReadCloser, error) {
+func (s ssmInstallerSource) GetSSMRegion() string {
+	return s.region
+}
+
+func (s ssmInstallerSource) GetSSMInstaller(ctx context.Context, logger *zap.Logger) (io.ReadCloser, error) {
 	endpoint, err := buildSSMURL(s.region)
 	if err != nil {
 		return nil, err
 	}
+
+	if err := validateSSMURL(endpoint); err != nil {
+		return nil, err
+	}
+
+	logger.Info("Downloading SSM installer...", zap.String("url", endpoint))
+
 	obj, err := util.GetHttpFileReader(ctx, endpoint)
 	if err != nil {
 		obj.Close()
@@ -48,6 +62,20 @@ func buildSSMURL(region string) (string, error) {
 
 	platform := fmt.Sprintf("%v_%v", variant, runtime.GOARCH)
 	return fmt.Sprintf("https://amazon-ssm-%v.s3.%v.amazonaws.com/latest/%v/ssm-setup-cli", region, region, platform), nil
+}
+
+func validateSSMURL(url string) error {
+	if url == "" {
+		return errors.New("SSM installer URL is empty")
+	}
+
+	_, err := http.Head(url)
+	if err != nil {
+		return fmt.Errorf("unable to access SSM installer download URL. "+
+			"Please check SSM is available on your region (e.g., us-west-2): %w", err)
+	}
+
+	return nil
 }
 
 // detectPlatformVariant returns a portion of the SSM installers URL that is dependent on the
