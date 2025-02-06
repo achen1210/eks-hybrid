@@ -47,7 +47,7 @@ const (
 
 var nodeNameProviderIdRegexPattern = regexp.MustCompile(`^eks-hybrid:///[^/]+/[^/]+/(.+)$`)
 
-func (k *kubelet) writeKubeletConfig() error {
+func (k *Kubelet) writeKubeletConfig() error {
 	kubeletVersion, err := GetKubeletVersion()
 	if err != nil {
 		return err
@@ -272,7 +272,7 @@ func (ksc *kubeletConfig) withHybridCloudProvider(cfg *api.NodeConfig, flags map
 	flags["cloud-provider"] = ""
 	// provider ID needs to be specified when the cloud provider is external or empty string
 	ksc.ProviderID = ptr.String(getHybridProviderId(cfg))
-	// hostname is overriden to the node name provided in the spec
+	// hostname is overridden to the node name provided in the spec
 	flags["hostname-override"] = cfg.Status.Hybrid.NodeName
 }
 
@@ -362,8 +362,8 @@ func (ksc *kubeletConfig) withPodInfraContainerImage(cfg *api.NodeConfig, kubele
 	return nil
 }
 
-func (k *kubelet) GenerateKubeletConfig() (*kubeletConfig, error) {
-	// Get the kubelet/kubernetes version to help conditionally enable features
+func (k *Kubelet) GenerateKubeletConfig() (*kubeletConfig, error) {
+	// Get the Kubelet/kubernetes version to help conditionally enable features
 	kubeletVersion, err := GetKubeletVersion()
 	if err != nil {
 		return nil, err
@@ -411,7 +411,7 @@ func (k *kubelet) GenerateKubeletConfig() (*kubeletConfig, error) {
 
 // WriteConfig writes the kubelet config to a file.
 // This should only be used for kubelet versions < 1.28.
-func (k *kubelet) writeKubeletConfigToFile() error {
+func (k *Kubelet) writeKubeletConfigToFile() error {
 	kubeletConfig, err := k.GenerateKubeletConfig()
 	if err != nil {
 		return err
@@ -444,7 +444,7 @@ func (k *kubelet) writeKubeletConfigToFile() error {
 // standard config file and writes the user's provided config to a directory for
 // drop-in support. This is only supported on kubelet versions >= 1.28. see:
 // https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/#kubelet-conf-d
-func (k *kubelet) writeKubeletConfigToDir() error {
+func (k *Kubelet) writeKubeletConfigToDir() error {
 	kubeletConfig, err := k.GenerateKubeletConfig()
 	if err != nil {
 		return err

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	kubeconfigRoot          = "/var/lib/kubelet"
+	kubeconfigRoot          = "/var/lib/Kubelet"
 	kubeconfigFile          = "kubeconfig"
 	kubeconfigBootstrapFile = "bootstrap-kubeconfig"
 	kubeconfigPerm          = 0o644
@@ -31,7 +31,7 @@ var (
 	kubeconfigBootstrapPath      = path.Join(kubeconfigRoot, kubeconfigBootstrapFile)
 )
 
-func (k *kubelet) writeKubeconfig() error {
+func (k *Kubelet) writeKubeconfig() error {
 	kubeconfig, err := generateKubeconfig(k.nodeConfig)
 	if err != nil {
 		return err
