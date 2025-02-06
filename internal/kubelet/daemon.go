@@ -11,9 +11,9 @@ import (
 
 const KubeletDaemonName = "kubelet"
 
-var _ daemon.Daemon = &kubelet{}
+var _ daemon.Daemon = &Kubelet{}
 
-type kubelet struct {
+type Kubelet struct {
 	daemonManager daemon.DaemonManager
 	awsConfig     *aws.Config
 	nodeConfig    *api.NodeConfig
@@ -24,7 +24,7 @@ type kubelet struct {
 }
 
 func NewKubeletDaemon(daemonManager daemon.DaemonManager, cfg *api.NodeConfig, awsConfig *aws.Config) daemon.Daemon {
-	return &kubelet{
+	return &Kubelet{
 		daemonManager: daemonManager,
 		nodeConfig:    cfg,
 		awsConfig:     awsConfig,
@@ -33,7 +33,7 @@ func NewKubeletDaemon(daemonManager daemon.DaemonManager, cfg *api.NodeConfig, a
 	}
 }
 
-func (k *kubelet) Configure() error {
+func (k *Kubelet) Configure() error {
 	if err := k.writeKubeletConfig(); err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (k *kubelet) Configure() error {
 	return nil
 }
 
-func (k *kubelet) EnsureRunning(_ context.Context) error {
+func (k *Kubelet) EnsureRunning(_ context.Context) error {
 	if err := k.daemonManager.DaemonReload(); err != nil {
 		return err
 	}
@@ -63,14 +63,14 @@ func (k *kubelet) EnsureRunning(_ context.Context) error {
 	return k.daemonManager.StartDaemon(KubeletDaemonName)
 }
 
-func (k *kubelet) PostLaunch() error {
+func (k *Kubelet) PostLaunch() error {
 	return nil
 }
 
-func (k *kubelet) Stop() error {
+func (k *Kubelet) Stop() error {
 	return k.daemonManager.StopDaemon(KubeletDaemonName)
 }
 
-func (k *kubelet) Name() string {
+func (k *Kubelet) Name() string {
 	return KubeletDaemonName
 }

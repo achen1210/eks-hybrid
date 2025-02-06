@@ -2,7 +2,10 @@ package flows
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/aws/eks-hybrid/internal/kubelet"
+	"github.com/aws/eks-hybrid/internal/node/hybrid"
 	"go.uber.org/zap"
 	"k8s.io/utils/strings/slices"
 
@@ -13,6 +16,7 @@ const (
 	preprocessPhase = "preprocess"
 	configPhase     = "config"
 	runPhase        = "run"
+	ipValidation    = "ip-validation"
 )
 
 type Initer struct {
@@ -89,5 +93,27 @@ func (i *Initer) Run(ctx context.Context) error {
 			i.Logger.Info("Finished post-launch tasks", nameField)
 		}
 	}
+
+	// want to take daemon and take the flags it has to input into ip validation algo
+	if !slices.Contains(i.SkipPhases, ipValidation) && i.NodeProvider.GetNodeConfig().IsHybridNode() {
+		i.Logger.Info("Validating Node IP...")
+
+		for _, daemon := range daemons {
+			if daemon.Name() == kubelet.KubeletDaemonName {
+				// With error handling
+				kubeletDaemon, ok := daemon.(*kubelet.Kubelet)
+				if !ok {
+					return fmt.Errorf("daemon is not kubelet type")
+				}
+
+				if err := hybrid.ValidateNodeIp(ctx, i.NodeProvider, *kubeletDaemon); err != nil {
+					return err
+				}
+
+				break
+			}
+		}
+	}
+
 	return i.NodeProvider.Cleanup()
 }

@@ -34,7 +34,7 @@ var (
 	imageCredentialProviderConfigPath                      = path.Join(imageCredentialProviderRoot, imageCredentialProviderConfig)
 )
 
-func (k *kubelet) writeImageCredentialProviderConfig() error {
+func (k *Kubelet) writeImageCredentialProviderConfig() error {
 	// fallback default for image credential provider binary if not overridden
 	ecrCredentialProviderBinPath := path.Join(imageCredentialProviderRoot, "ecr-credential-provider")
 	if binPath, set := os.LookupEnv(ecrCredentialProviderBinPathEnvironmentName); set {
