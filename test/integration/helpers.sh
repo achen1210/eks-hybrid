@@ -309,3 +309,20 @@ function mock::aws() {
   # ensure that our instance exists in the API
   aws ec2 run-instances
 }
+
+# Must call mock::aws first
+function mock::eks-cluster() {
+    # Accepts comma-separated lists of CIDRs
+    local NODE_CIDRS=${1:-"172.16.0.0/12"}
+    local POD_CIDRS=${2:-"10.0.0.0/8"}
+
+    # Convert comma-separated lists to proper JSON arrays
+    local NODE_CIDRS_JSON=$(echo "$NODE_CIDRS" | sed 's/,/", "/g' | sed 's/.*/"&"/')
+    local POD_CIDRS_JSON=$(echo "$POD_CIDRS" | sed 's/,/", "/g' | sed 's/.*/"&"/')
+
+    aws eks create-cluster \
+        --name my-cluster \
+        --role-arn arn:aws:iam::123456789010:role/mockHybridNodeRole \
+        --resources-vpc-config subnetIds=subnet-1,subnet-2,vpcId=vpc-12345 \
+        --remote-network-config '{"remoteNodeNetworks":[{"cidrs":['"$NODE_CIDRS_JSON"']}],"remotePodNetworks":[{"cidrs":['"$POD_CIDRS_JSON"']}]}'
+}
