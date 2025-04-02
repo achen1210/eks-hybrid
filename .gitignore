@@ -3,8 +3,11 @@ _bin
 
 cover.out
 coverage.out
+*manifest.json
+*.swp
 .idea
 .vscode
+*version-info.json
 .DS_Store
 vendor
 e2e-artifacts
@@ -13,3 +16,6 @@ test/e2e/suite/ca.crt
 test/e2e/suite/ca.key
 test/e2e/e2e.test
 _output
+site/
+.git-commit
+*.wasm

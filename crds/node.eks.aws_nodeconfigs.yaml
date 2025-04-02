@@ -53,8 +53,8 @@ spec:
                     format: byte
                     type: string
                   cidr:
-                    description: CIDR is your cluster's Pod IP CIDR. This value is
-                      used to infer your cluster's DNS address.
+                    description: CIDR is your cluster's service CIDR block. This value
+                      is used to infer your cluster's DNS address.
                     type: string
                   enableOutpost:
                     description: EnableOutpost determines how your node is configured
@@ -77,6 +77,15 @@ spec:
                 description: ContainerdOptions are additional parameters passed to
                   `containerd`.
                 properties:
+                  baseRuntimeSpec:
+                    additionalProperties:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    description: |-
+                      BaseRuntimeSpec is the OCI runtime specification upon which all containers will be based.
+                      The provided spec will be merged with the default spec; so that a partial spec may be provided.
+                      For more information, see: https://github.com/opencontainers/runtime-spec
+                    type: object
                   config:
                     description: |-
                       Config is inline [`containerd` configuration TOML](https://github.com/containerd/containerd/blob/main/docs/man/containerd-config.toml.5.md)
@@ -142,6 +151,12 @@ spec:
                         type: string
                     type: object
                 type: object
+              featureGates:
+                additionalProperties:
+                  type: boolean
+                description: FeatureGates holds key-value pairs to enable or disable
+                  application features.
+                type: object
               instance:
                 description: InstanceOptions determines how the node's operating system
                   and devices are configured.
@@ -156,6 +171,7 @@ spec:
                           an instance's local storage devices.
                         enum:
                         - RAID0
+                        - RAID10
                         - Mount
                         type: string
                     type: object

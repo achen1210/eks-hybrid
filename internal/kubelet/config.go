@@ -22,11 +22,13 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/mod/semver"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8skubelet "k8s.io/kubelet/config/v1beta1"
 	"sigs.k8s.io/yaml"
 
+	"github.com/aws/smithy-go/ptr"
 	"github.com/aws/eks-hybrid/internal/api"
 	"github.com/aws/eks-hybrid/internal/containerd"
 	"github.com/aws/eks-hybrid/internal/system"
@@ -48,13 +50,9 @@ const (
 var nodeNameProviderIdRegexPattern = regexp.MustCompile(`^eks-hybrid:///[^/]+/[^/]+/(.+)$`)
 
 func (k *kubelet) writeKubeletConfig() error {
-	kubeletVersion, err := GetKubeletVersion()
-	if err != nil {
-		return err
-	}
 	// tracking: https://github.com/kubernetes/enhancements/issues/3983
 	// for enabling drop-in configuration
-	if semver.Compare(kubeletVersion, "v1.29.0") < 0 {
+	if semver.Compare(k.nodeConfig.Status.KubeletVersion, "v1.29.0") < 0 {
 		return k.writeKubeletConfigToFile()
 	} else {
 		return k.writeKubeletConfigToDir()
@@ -216,7 +214,7 @@ func (ksc *kubeletConfig) withOutpostSetup(cfg *api.NodeConfig) error {
 }
 
 func (ksc *kubeletConfig) withNodeIp(cfg *api.NodeConfig, flags map[string]string) error {
-	nodeIp, err := getNodeIp(context.TODO(), imds.New(imds.Options{}), cfg)
+	nodeIp, err := getNodeIp(context.TODO(), cfg)
 	if err != nil {
 		return err
 	}
@@ -229,9 +227,9 @@ func (ksc *kubeletConfig) withResolvConf(resolvConfPath string) {
 	ksc.ResolvConf = resolvConfPath
 }
 
-func (ksc *kubeletConfig) withVersionToggles(kubeletVersion string, flags map[string]string) {
+func (ksc *kubeletConfig) withVersionToggles(cfg *api.NodeConfig, flags map[string]string) {
 	// TODO: remove when 1.26 is EOL
-	if semver.Compare(kubeletVersion, "v1.27.0") < 0 {
+	if semver.Compare(cfg.Status.KubeletVersion, "v1.27.0") < 0 {
 		// --container-runtime flag is gone in 1.27+
 		flags["container-runtime"] = "remote"
 		// --container-runtime-endpoint moved to kubelet config start from 1.27
@@ -241,27 +239,34 @@ func (ksc *kubeletConfig) withVersionToggles(kubeletVersion string, flags map[st
 
 	// TODO: Remove this during 1.27 EOL
 	// Enable Feature Gate for KubeletCredentialProviders in versions less than 1.28 since this feature flag was removed in 1.28.
-	if semver.Compare(kubeletVersion, "v1.28.0") < 0 {
+	if semver.Compare(cfg.Status.KubeletVersion, "v1.28.0") < 0 {
 		ksc.FeatureGates["KubeletCredentialProviders"] = true
 	}
 
 	// for K8s versions that suport API Priority & Fairness, increase our API server QPS
 	// in 1.27, the default is already increased to 50/100, so use the higher defaults
-	if semver.Compare(kubeletVersion, "v1.22.0") >= 0 && semver.Compare(kubeletVersion, "v1.27.0") < 0 {
+	if semver.Compare(cfg.Status.KubeletVersion, "v1.22.0") >= 0 && semver.Compare(cfg.Status.KubeletVersion, "v1.27.0") < 0 {
 		ksc.KubeAPIQPS = ptr.Int(10)
 		ksc.KubeAPIBurst = ptr.Int(20)
 	}
 }
 
-func (ksc *kubeletConfig) withCloudProvider(kubeletVersion string, cfg *api.NodeConfig, flags map[string]string) {
-	if semver.Compare(kubeletVersion, "v1.26.0") >= 0 {
+func (ksc *kubeletConfig) withCloudProvider(cfg *api.NodeConfig, flags map[string]string) {
+	if semver.Compare(cfg.Status.KubeletVersion, "v1.26.0") >= 0 {
 		// ref: https://github.com/kubernetes/kubernetes/pull/121367
 		flags["cloud-provider"] = "external"
 		// provider ID needs to be specified when the cloud provider is external
 		ksc.ProviderID = ptr.String(getProviderId(cfg.Status.Instance.AvailabilityZone, cfg.Status.Instance.ID))
-		// the name of the Node object must equal the EC2 PrivateDnsName
-		// see: https://github.com/awslabs/amazon-eks-ami/pull/1264
-		flags["hostname-override"] = cfg.Status.Instance.PrivateDNSName
+		var nodeName string
+		if api.IsFeatureEnabled(api.InstanceIdNodeName, cfg.Spec.FeatureGates) {
+			zap.L().Info("Opt-in Instance Id naming strategy")
+			nodeName = cfg.Status.Instance.ID
+		} else {
+			// the name of the Node object default to EC2 PrivateDnsName
+			// see: https://github.com/awslabs/amazon-eks-ami/pull/1264
+			nodeName = cfg.Status.Instance.PrivateDNSName
+		}
+		flags["hostname-override"] = nodeName
 	} else {
 		flags["cloud-provider"] = "aws"
 	}
@@ -288,11 +293,11 @@ func (ksc *kubeletConfig) withHybridNodeLabels(cfg *api.NodeConfig, flags map[st
 func (ksc *kubeletConfig) withDefaultReservedResources(cfg *api.NodeConfig) {
 	ksc.SystemReservedCgroup = ptr.String("/system")
 	ksc.KubeReservedCgroup = ptr.String("/runtime")
-	maxPods, ok := MaxPodsPerInstanceType[cfg.Status.Instance.Type]
-	if !ok {
-		ksc.MaxPods = CalcMaxPods(cfg.Status.Instance.Region, cfg.Status.Instance.Type)
-	} else {
+	if maxPods, ok := MaxPodsPerInstanceType[cfg.Status.Instance.Type]; ok {
+		// #nosec G115 // known source from ec2 apis within int32 range
 		ksc.MaxPods = int32(maxPods)
+	} else {
+		ksc.MaxPods = CalcMaxPods(cfg.Status.Instance.Region, cfg.Status.Instance.Type)
 	}
 	ksc.KubeReserved = map[string]string{
 		"cpu":               fmt.Sprintf("%dm", getCPUMillicoresToReserve()),
@@ -352,16 +357,18 @@ func (ksc *kubeletConfig) withHybridReservedResources() error {
 //
 // TODO: revisit once the minimum supportted version catches up or the container
 // runtime is moved to containerd 2.0
-func (ksc *kubeletConfig) withPodInfraContainerImage(cfg *api.NodeConfig, kubeletVersion string, flags map[string]string) error {
+func (ksc *kubeletConfig) withPodInfraContainerImage(cfg *api.NodeConfig, flags map[string]string) error {
 	// the flag is a noop on 1.29+, since the behavior was changed to use the
 	// CRI image pinning behavior and no longer considers the flag value.
 	// see: https://github.com/kubernetes/kubernetes/pull/118544
-	if semver.Compare(kubeletVersion, "v1.29.0") < 0 {
+	if semver.Compare(cfg.Status.KubeletVersion, "v1.29.0") < 0 {
 		flags["pod-infra-container-image"] = cfg.Status.Defaults.SandboxImage
 	}
 	return nil
 }
 
+
+//TODO: Eliminate GetKubeletVersion()??
 func (k *kubelet) GenerateKubeletConfig() (*kubeletConfig, error) {
 	// Get the kubelet/kubernetes version to help conditionally enable features
 	kubeletVersion, err := GetKubeletVersion()
@@ -378,6 +385,8 @@ func (k *kubelet) GenerateKubeletConfig() (*kubeletConfig, error) {
 	if err := kubeletConfig.withOutpostSetup(k.nodeConfig); err != nil {
 		return nil, err
 	}
+
+	//TODO: MERGE - get rid of kubeletversion something like 	if err := kubeletConfig.withPodInfraContainerImage(cfg, k.flags); err != nil {
 	if err := kubeletConfig.withPodInfraContainerImage(k.nodeConfig, kubeletVersion, k.flags); err != nil {
 		return nil, err
 	}
@@ -405,6 +414,10 @@ func (k *kubelet) GenerateKubeletConfig() (*kubeletConfig, error) {
 		kubeletConfig.withCloudProvider(kubeletVersion, k.nodeConfig, k.flags)
 		kubeletConfig.withDefaultReservedResources(k.nodeConfig)
 	}
+
+	kubeletConfig.withVersionToggles(cfg, k.flags)
+	kubeletConfig.withCloudProvider(cfg, k.flags)
+	kubeletConfig.withDefaultReservedResources(cfg)
 
 	return &kubeletConfig, nil
 }
@@ -467,7 +480,7 @@ func (k *kubelet) writeKubeletConfigToDir() error {
 		k.flags["config-dir"] = dirPath
 
 		zap.L().Info("Enabling kubelet config drop-in dir..")
-		k.setEnv("KUBELET_CONFIG_DROPIN_DIR_ALPHA", "on")
+		k.environment["KUBELET_CONFIG_DROPIN_DIR_ALPHA"] = "on"
 		filePath := path.Join(dirPath, "00-nodeadm.conf")
 
 		// merge in default type metadata like kind and apiVersion in case the
@@ -483,6 +496,7 @@ func (k *kubelet) writeKubeletConfigToDir() error {
 		if err != nil {
 			return err
 		}
+		zap.L().Info("Writing user kubelet config to drop-in file..", zap.String("path", filePath))
 		if err := util.WriteFileWithDir(filePath, userKubeletConfigBytes, kubeletConfigPerm); err != nil {
 			return err
 		}
@@ -500,36 +514,24 @@ func getHybridProviderId(cfg *api.NodeConfig) string {
 }
 
 // Get the IP of the node depending on the ipFamily configured for the cluster
-func getNodeIp(ctx context.Context, imdsClient *imds.Client, cfg *api.NodeConfig) (string, error) {
+func getNodeIp(ctx context.Context, cfg *api.NodeConfig) (string, error) {
 	ipFamily, err := api.GetCIDRIpFamily(cfg.Spec.Cluster.CIDR)
 	if err != nil {
 		return "", err
 	}
 	switch ipFamily {
 	case api.IPFamilyIPv4:
-		ipv4Response, err := imdsClient.GetMetadata(ctx, &imds.GetMetadataInput{
-			Path: "local-ipv4",
-		})
+		ipv4, err := imds.GetProperty(ctx, "local-ipv4")
 		if err != nil {
 			return "", err
 		}
-		ip, err := io.ReadAll(ipv4Response.Content)
-		if err != nil {
-			return "", err
-		}
-		return string(ip), nil
+		return ipv4, nil
 	case api.IPFamilyIPv6:
-		ipv6Response, err := imdsClient.GetMetadata(ctx, &imds.GetMetadataInput{
-			Path: fmt.Sprintf("network/interfaces/macs/%s/ipv6s", cfg.Status.Instance.MAC),
-		})
+		ipv6, err := imds.GetProperty(ctx, imds.IMDSProperty(fmt.Sprintf("network/interfaces/macs/%s/ipv6s", cfg.Status.Instance.MAC)))
 		if err != nil {
 			return "", err
 		}
-		ip, err := io.ReadAll(ipv6Response.Content)
-		if err != nil {
-			return "", err
-		}
-		return string(ip), nil
+		return ipv6, nil
 	default:
 		return "", fmt.Errorf("invalid ip-family. %s is not one of %v", ipFamily, []api.IPFamily{api.IPFamilyIPv4, api.IPFamilyIPv6})
 	}

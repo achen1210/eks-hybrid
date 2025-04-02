@@ -22,7 +22,7 @@ _Appears in:_
 | `region` _string_ | Region is an AWS region (e.g. us-east-1) used to retrieve regional artifacts<br />as well as region where EKS cluster lives. |
 | `apiServerEndpoint` _string_ | APIServerEndpoint is the URL of your EKS cluster's kube-apiserver. |
 | `certificateAuthority` _integer array_ | CertificateAuthority is a base64-encoded string of your cluster's certificate authority chain. |
-| `cidr` _string_ | CIDR is your cluster's Pod IP CIDR. This value is used to infer your cluster's DNS address. |
+| `cidr` _string_ | CIDR is your cluster's service CIDR block. This value is used to infer your cluster's DNS address. |
 | `enableOutpost` _boolean_ | EnableOutpost determines how your node is configured when running on an AWS Outpost. |
 | `id` _string_ | ID is an identifier for your cluster; this is only used when your node is running on an AWS Outpost. |
 
@@ -36,13 +36,23 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `config` _string_ | Config is inline [`containerd` configuration TOML](https://github.com/containerd/containerd/blob/main/docs/man/containerd-config.toml.5.md)<br />that will be [imported](https://github.com/containerd/containerd/blob/32169d591dbc6133ef7411329b29d0c0433f8c4d/docs/man/containerd-config.toml.5.md?plain=1#L146-L154)<br />by the default configuration file. |
+| `baseRuntimeSpec` _object (keys:string, values:[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#rawextension-runtime-pkg))_ | BaseRuntimeSpec is the OCI runtime specification upon which all containers will be based.<br />The provided spec will be merged with the default spec; so that a partial spec may be provided.<br />For more information, see: https://github.com/opencontainers/runtime-spec |
+
+#### Feature
+
+_Underlying type:_ _string_
+
+Feature specifies which feature gate should be toggled
+
+_Appears in:_
+- [NodeConfigSpec](#nodeconfigspec)
+
+.Validation:
+- Enum: [InstanceIdNodeName]
 
 #### HybridOptions
 
 HybridOptions defines the options specific to hybrid node enrollment.
-
-_Appears in:_
-- [NodeConfigSpec](#nodeconfigspec)
 
 | Field | Description |
 | --- | --- |
@@ -112,7 +122,7 @@ _Appears in:_
 - [LocalStorageOptions](#localstorageoptions)
 
 .Validation:
-- Enum: [RAID0 Mount]
+- Enum: [RAID0 RAID10 Mount]
 
 #### NodeConfig
 
@@ -138,6 +148,7 @@ _Appears in:_
 | `containerd` _[ContainerdOptions](#containerdoptions)_ |  |
 | `instance` _[InstanceOptions](#instanceoptions)_ |  |
 | `kubelet` _[KubeletOptions](#kubeletoptions)_ |  |
+| `featureGates` _object (keys:[Feature](#feature), values:boolean)_ | FeatureGates holds key-value pairs to enable or disable application features. |
 | `hybrid` _[HybridOptions](#hybridoptions)_ |  |
 
 #### SSM

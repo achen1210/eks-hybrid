@@ -6,7 +6,6 @@ import (
 	"os"
 
 	internalapi "github.com/aws/eks-hybrid/internal/api"
-	apibridge "github.com/aws/eks-hybrid/internal/api/bridge"
 )
 
 type fileConfigProvider struct {
@@ -36,9 +35,5 @@ func (fcs *fileConfigProvider) Provide() (*internalapi.NodeConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	config, err := apibridge.DecodeStrictNodeConfig(data)
-	if err != nil {
-		return nil, err
-	}
-	return config, nil
+	return ParseMaybeMultipart(data)
 }

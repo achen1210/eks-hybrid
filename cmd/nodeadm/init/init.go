@@ -1,7 +1,6 @@
 package init
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -45,10 +44,10 @@ func NewInitCommand() cli.Command {
 }
 
 type initCmd struct {
-	cmd          *flaggy.Subcommand
+	cmd        *flaggy.Subcommand
 	configSource string
-	skipPhases   []string
-	daemons      []string
+	skipPhases []string
+	daemons    []string
 }
 
 func (c *initCmd) Flaggy() *flaggy.Subcommand {
@@ -135,3 +134,40 @@ func validateFirewallOpenPorts() error {
 	}
 	return nil
 }
+
+//TODO: MERGE - Merge this enrich config into the other part of the codebase
+//// Various initializations and verifications of the NodeConfig and
+//// perform in-place updates when allowed by the user
+//func enrichConfig(log *zap.Logger, cfg *api.NodeConfig) error {
+//	log.Info("Fetching kubelet version..")
+//	kubeletVersion, err := kubelet.GetKubeletVersion()
+//	if err != nil {
+//		return err
+//	}
+//	cfg.Status.KubeletVersion = kubeletVersion
+//	log.Info("Fetched kubelet version", zap.String("version", kubeletVersion))
+//	log.Info("Fetching instance details..")
+//	awsConfig, err := config.LoadDefaultConfig(context.TODO(),
+//		config.WithClientLogMode(aws.LogRetries),
+//		config.WithEC2IMDSRegion(func(o *config.UseEC2IMDSRegion) {
+//			// Use our pre-configured IMDS client to avoid hitting common retry
+//			// issues with the default config.
+//			o.Client = imds.Client
+//		}),
+//	)
+//	if err != nil {
+//		return err
+//	}
+//	instanceDetails, err := api.GetInstanceDetails(context.TODO(), cfg.Spec.FeatureGates, ec2.NewFromConfig(awsConfig))
+//	if err != nil {
+//		return err
+//	}
+//	cfg.Status.Instance = *instanceDetails
+//	log.Info("Instance details populated", zap.Reflect("details", instanceDetails))
+//	log.Info("Fetching default options...")
+//	cfg.Status.Defaults = api.DefaultOptions{
+//		SandboxImage: "localhost/kubernetes/pause",
+//	}
+//	log.Info("Default options populated", zap.Reflect("defaults", cfg.Status.Defaults))
+//	return nil
+//}

@@ -33,12 +33,14 @@ type NodeConfigSpec struct {
 	Instance   InstanceOptions   `json:"instance,omitempty"`
 	Kubelet    KubeletOptions    `json:"kubelet,omitempty"`
 	Hybrid     *HybridOptions    `json:"hybrid,omitempty"`
+	FeatureGates map[Feature]bool  `json:"featureGates,omitempty"`
 }
 
 type NodeConfigStatus struct {
-	Instance InstanceDetails `json:"instance,omitempty"`
+	Instance       InstanceDetails `json:"instance,omitempty"`
 	Hybrid   HybridDetails   `json:"hybrid,omitempty"`
-	Defaults DefaultOptions  `json:"default,omitempty"`
+	Defaults       DefaultOptions  `json:"default,omitempty"`
+	KubeletVersion string          `json:"kubeletVersion,omitempty"`
 }
 
 type InstanceDetails struct {
@@ -68,6 +70,7 @@ type ClusterDetails struct {
 	ID                   string `json:"id,omitempty"`
 }
 
+type KubeletFlags []string
 type KubeletOptions struct {
 	// Config is a kubelet config that can be provided by the user to override
 	// default generated configurations
@@ -76,18 +79,17 @@ type KubeletOptions struct {
 	// Flags is a list of command-line kubelet arguments. These arguments are
 	// amended to the generated defaults, and therefore will act as overrides
 	// https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/
-	Flags []string `json:"flags,omitempty"`
+	Flags KubeletFlags `json:"flags,omitempty"`
 }
 
 // InlineDocument is an alias to a dynamically typed map. This allows using
 // embedded YAML and JSON types within the parent yaml config.
 type InlineDocument map[string]runtime.RawExtension
 
+type ContainerdConfig string
 type ContainerdOptions struct {
-	// Config is an inline containerd config toml document that can be provided
-	// by the user to override default generated configurations
-	// https://github.com/containerd/containerd/blob/main/docs/man/containerd-config.toml.5.md
-	Config string `json:"config,omitempty"`
+	Config          ContainerdConfig `json:"config,omitempty"`
+	BaseRuntimeSpec InlineDocument   `json:"baseRuntimeSpec,omitempty"`
 }
 
 type IPFamily string
@@ -108,8 +110,9 @@ type LocalStorageOptions struct {
 type LocalStorageStrategy string
 
 const (
-	LocalStorageRAID0 LocalStorageStrategy = "RAID0"
-	LocalStorageMount LocalStorageStrategy = "Mount"
+	LocalStorageRAID0  LocalStorageStrategy = "RAID0"
+	LocalStorageRAID10 LocalStorageStrategy = "RAID10"
+	LocalStorageMount  LocalStorageStrategy = "Mount"
 )
 
 type NodeType string
@@ -169,3 +172,10 @@ type SSM struct {
 	ActivationCode string `json:"activationCode,omitempty"`
 	ActivationID   string `json:"activationId,omitempty"`
 }
+
+type Feature string
+
+const (
+	// InstanceIdNodeName will use EC2 instance ID as node name
+	InstanceIdNodeName Feature = "InstanceIdNodeName"
+)
