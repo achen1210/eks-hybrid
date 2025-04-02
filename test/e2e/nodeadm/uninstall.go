@@ -13,12 +13,13 @@ import (
 
 // CleanNode runs the process to unregister a node from the cluster and uninstall all the installed kubernetes dependencies.
 type CleanNode struct {
-	K8s                 *clientgo.Clientset
+	K8s                 clientgo.Interface
 	RemoteCommandRunner commands.RemoteCommandRunner
 	Verifier            UninstallVerifier
 	Logger              logr.Logger
 
-	NodeIP string
+	NodeName string
+	NodeIP   string
 }
 
 // UninstallVerifier checks if nodeadm uninstall process was successful in a node.
@@ -27,7 +28,7 @@ type UninstallVerifier interface {
 }
 
 func (u CleanNode) Run(ctx context.Context) error {
-	node, err := kubernetes.WaitForNode(ctx, u.K8s, u.NodeIP, u.Logger)
+	node, err := kubernetes.WaitForNode(ctx, u.K8s, u.NodeName, u.Logger)
 	if err != nil {
 		return err
 	}

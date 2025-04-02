@@ -15,16 +15,17 @@ import (
 // This assumes the current node's version meets the version skew policy and it can actually
 // be upgraded to the target version.
 type UpgradeNode struct {
-	K8s                 *clientgo.Clientset
+	K8s                 clientgo.Interface
 	RemoteCommandRunner commands.RemoteCommandRunner
 	Logger              logr.Logger
 
 	NodeIP           string
+	NodeName         string
 	TargetK8sVersion string
 }
 
 func (u UpgradeNode) Run(ctx context.Context) error {
-	node, err := kubernetes.WaitForNode(ctx, u.K8s, u.NodeIP, u.Logger)
+	node, err := kubernetes.WaitForNode(ctx, u.K8s, u.NodeName, u.Logger)
 	if err != nil {
 		return err
 	}
