@@ -38,7 +38,17 @@ BIN_DIR="$REPO_ROOT/_bin/$ARCH"
 SUITE_BIN="$BIN_DIR/${E2E_SUITE:-nodeadm.test}"
 # Use - instead of :- below to differentiate env var not set vs being empty string
 # Substitute only if E2E_FILTER is not set
-FILTER="${E2E_FILTER-(simpleflow) || (upgradeflow && (ubuntu2204-amd64 || rhel8-amd64 || al23-amd64))}"
+if [ -z "${E2E_FILTER+x}" ]; then
+  # E2E_FILTER is unset, use default
+  FILTER="(simpleflow) || (upgradeflow && (ubuntu2204-amd64 || rhel8-amd64 || al23-amd64))"
+elif [ "${E2E_FILTER}" = "NONE" ]; then
+  # E2E_FILTER is set to NONE, no filter
+  FILTER=""
+else
+  # E2E_FILTER is set to something else, use it
+  FILTER="${E2E_FILTER}"
+fi
+
 
 mkdir -p $CONFIG_DIR
 
